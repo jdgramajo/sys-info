@@ -1,0 +1,13 @@
+# module files
+node_modules/
+
+# swp
+.*.swp
+*.swp
+
+# nyc
+.nyc_output/
+
+# package-lock, still undecided
+package-lock.json
+
