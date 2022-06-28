@@ -29,7 +29,8 @@ tap.test("interactive mode tests", t => {
 		const child = spawn("node", ["../sys-info.js", "-i"], { cwd: __dirname })
 		const commandTests = [
 			{ genExp: /(atime|mtime|ctime|birthtime)/, message: "must output file stats", nextCommand: "exit\n" },
-			{ genExp: /\[.*\]/, message: "must output a dir member array", nextCommand: `details ${__filename}\n` },
+			{ genExp: /(error|hint)/, message: "must output error message & hint", nextCommand: `details ${__filename}\n` },
+			{ genExp: /\[.*\]/, message: "must output a dir member array", nextCommand: "details badname\n" },
 			{ genExp: /(uid|gid|username|homedir|shell)/, message: "must get user info", nextCommand: "directory\n" },
 			{ genExp: /(type|cpu|hostname|platform)/, message: "must get system info", nextCommand: "user\n" },
 			{ genExp: /(title|message)/, message: "must dispay help", nextCommand: "system\n" },

@@ -39,7 +39,7 @@ const getFileStats = (name) => {
 		const stats = statSync(name)
 		return stats
 	} catch(error) {
-		console.log("Something went wrong, double check with \"directory\"")
+		return { error, hint: "Something went wrong, double check with \"directory\"" }
 	}
 }
 
