@@ -27,9 +27,15 @@ tap.test("script mode tests", t => {
 tap.test("interactive mode tests", t => {
 	t.test("given \"-i\" flag, interactive mode is launched", t => {
 		const child = spawn("node", ["../sys-info.js", "-i"], { cwd: __dirname })
-		child.stdout.once("data", data => {
-			t.match(data.toString(), /interactive mode/, "must enter interactive mode")
-			child.stdin.write("exit\n")
+		const commandTests = [
+			// { genExp: //, message: "", nextCommand: "\n" },
+			{ genExp: /(type|cpu|hostname|platform)/, message: "must get system info", nextCommand: "exit\n" },
+			{ genExp: /interactive mode/, message: "must enter interactive mode", nextCommand: "system\n" }
+		]
+		child.stdout.on("data", data => {
+			const { genExp, message, nextCommand } = commandTests.pop()
+			t.match(data.toString(), genExp, message)
+			child.stdin.write(nextCommand)
 		})
 		child.on("close", () => t.end())
 	})
