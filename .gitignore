@@ -11,3 +11,11 @@ node_modules/
 # package-lock, still undecided
 package-lock.json
 
+# vscode
+.vscode
+
+# mac
+.DS_Store
+
+# info directory
+info/
