@@ -1,7 +1,8 @@
 "use strict"
 
-const os = require('os')
-const { statSync, readdirSync, mkdirSync, writeFileSync } = require('fs')
+const os = require("os")
+const { statSync, readdirSync, mkdirSync, writeFileSync, readFileSync } = require("fs")
+const { join } = require("path")
 
 const interactiveHelpObject = {
 	title: "Help",
@@ -47,40 +48,55 @@ const getFileStats = (name) => {
 	}
 }
 
+const getExistingInfo = (option) => {
+	const getInfo = filename => JSON.parse(readFileSync(filename).toString())
+
+	switch (option) {
+		case "s":
+			return getInfo(join(__dirname, "info/system.json"))
+		default:
+		  return { type: "WRONG_OPTION", hint: `unrecognized display option: ${option}` }
+	}
+}
+
 const commandProcessor = (command) => {
 
-	let commandOutput = ""
+	let result
 
 	switch (command[0]) {
 		case "help":
-			commandOutput = JSON.stringify(interactiveHelpObject)
+			result = interactiveHelpObject
 			break
 		case "system":
-			commandOutput = JSON.stringify(getSystemInfoObject())
+			result = getSystemInfoObject()
 			break
 		case "user":
-			commandOutput = JSON.stringify(getUserInfoObject())
+			result = getUserInfoObject()
 			break
 		case "directory":
-			commandOutput = JSON.stringify(getFilteredFileListObject())
+			result = getFilteredFileListObject()
 			break
 		case "details":
-			commandOutput = JSON.stringify(getFileStats(command[1]))
+			result = getFileStats(command[1])
+			break
+		case "display":
+			result = getExistingInfo(command[1])
 			break
 		case "exit":
+			process.stdin.removeAllListeners("data")
 			process.exit(0)
 		default:
-			commandOutput = "unrecognized command"
+			result = { type: "ERROR_MESSAGE", message: "unrecognized command" }
 			break
 	}
 
 	if (command.slice(-1).toString() === "-s") {
-		mkdirSync("./info")
-		writeFileSync(`./info/${command[0]}.json`, commandOutput)
-		commandOutput = `./info/${command[0]}.json file created/updated`
+		mkdirSync("./info", { recursive: true })
+		writeFileSync(`./info/${command[0]}.json`, JSON.stringify(result))
+		result = `./info/${command[0]}.json file created/updated`
 	}
 
-	console.log(commandOutput)
+	console.log(result)
 }
 
 const processParams = (params) => {
@@ -99,7 +115,6 @@ const run = () => {
 
 	if (argvCount < 1) {
 		console.log(JSON.stringify(scriptHelpObject))
-		// TODO: add tests for exit status
 		process.exit(1)
 	}
 
