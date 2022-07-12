@@ -6,7 +6,6 @@ const { readdirSync, readFileSync } = require('fs')
 const { join } = require("path")
 
 tap.test("script mode tests", t => {
-
 	t.test("given an empty command", t => {
 
 		let dataEventEmitted = false
@@ -15,6 +14,7 @@ tap.test("script mode tests", t => {
 		child.stdout.on("data", data => {
 			dataEventEmitted = true
 			t.match(data.toString(), /(title|Usage|message)/, "must show usage message")
+			t.notSame(child.exitCode, 0, "exit code must be different to 0")
 		})
 
 		child.on("close", () => {
@@ -24,7 +24,6 @@ tap.test("script mode tests", t => {
 	})
 
 	t.test("given good command", t => {
-
 		let dataEventEmitted = false
 		const child = spawn("node", ["sys-info.js", "directory"], { cwd: join(__dirname, '..') })
 
@@ -58,7 +57,6 @@ tap.test("script mode tests", t => {
 	})
 
 	t.test("when outputing commands end with the \"-s\" flag", t => {
-
 		let dataEventEmitted = false
 		const child = spawn("node", ["sys-info.js", "system", "-s"], { cwd: join(__dirname, "..") })
 
@@ -112,7 +110,6 @@ tap.test("script mode tests", t => {
 		t.end()
 	})
 
-	t.todo("test exit status code is non zero with a bad command")
 	t.end()
 
 })
