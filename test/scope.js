@@ -14,7 +14,6 @@ tap.test("script mode tests", t => {
 
 		child.stdout.on("data", data => {
 			dataEventEmitted = true
-			console.log(data.toString())
 			t.match(data.toString(), /(title|Usage|message)/, "must show usage message")
 		})
 
@@ -78,8 +77,37 @@ tap.test("script mode tests", t => {
 
 	// TODO: This test is coupled to file creation above -> FIX!
 	t.test("\"display\" command tests", t => {
-		t.todo("with a valid option specified")
-		t.todo("with a invalid option specified, it outputs an error message")
+		
+		t.test("with a valid option specified", t => {
+			let dataEventEmitted = false
+			const child = spawn("node", ["sys-info.js", "display", "s"], { cwd: join(__dirname, "..") })
+
+			child.stdout.on("data", data => {
+				dataEventEmitted = true
+				t.match(data.toString(), /(type|architecture|hostname|platform|cpus)/, "must output that file named as the command was created")
+			})
+
+			child.on("close", () => {
+				t.ok(dataEventEmitted, "stdout should emit data")
+				t.end()
+			})
+		})
+
+		t.test("with a invalid option specified, it outputs an error message", t => {
+			let dataEventEmitted = false
+			const child = spawn("node", ["sys-info.js", "display", "x"], { cwd: join(__dirname, "..") })
+
+			child.stdout.on("data", data => {
+				dataEventEmitted = true
+				t.match(data.toString(), /(WRONG_OPTION|unrecognized display option: h)/, "must output that file named as the command was created")
+			})
+
+			child.on("close", () => {
+				t.ok(dataEventEmitted, "stdout should emit data")
+				t.end()
+			})
+		})
+
 		t.todo("with no additional params, it displays all existing info")
 		t.end()
 	})
