@@ -2,7 +2,7 @@
 
 const { spawn } = require("child_process");
 const tap = require("tap")
-const { readdirSync, readFileSync } = require('fs')
+const { readdirSync, readFileSync, existsSync, renameSync, mkdirSync, writeFileSync, rmSync } = require('fs')
 const { join } = require("path")
 
 tap.test("script mode tests", t => {
@@ -106,7 +106,43 @@ tap.test("script mode tests", t => {
 			})
 		})
 
-		t.todo("with no additional params, it displays all existing info")
+		t.test("with no additional params, it displays all existing info", t => {
+			
+			const testTime = new Date().getTime()
+			const restoreDir = existsSync("../info")
+			const options = ["system", "user", "directory", "details", "display"]
+	
+			let dataEventEmitted = false
+
+			t.before(() => {
+				if (restoreDir) renameSync("../info", `../${testTime}-info`)
+				mkdirSync("../info")
+				for(let option of options) { writeFileSync(`../info/${option}-test-file.txt`, option) }
+				for (let file of readdirSync("../info")) console.log(readFileSync(`../info/${file}`).toString())
+				console.log(readdirSync("../info"))
+			})
+
+			t.teardown(() => {
+				console.log(readdirSync("../info"))
+				for (let file of readdirSync("../info")) { console.log(readFileSync(`../info/${file}`).toString()) }
+				rmSync("../info", { recursive: true, force: true })
+				if (restoreDir) renameSync(`../${testTime}-info`, "../info")
+			})
+
+			const child = spawn("node", ["sys-info.js", "display"], { cwd: join(__dirname, "..") })
+
+			child.stdout.on("data", data => {
+			  dataEventEmitted = true
+			  t.same(data.toString(), options.join(), "display must join available files and combine contents")
+			})
+
+			child.on("close", () => {
+			  t.ok(dataEventEmitted, "stdout should emit data")
+			  t.end()
+			})
+
+		})
+
 		t.end()
 	})
 
@@ -150,4 +186,3 @@ tap.test("interactive mode tests", t => {
 	t.end()
 
 })
-

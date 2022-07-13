@@ -1,7 +1,7 @@
 "use strict"
 
 const os = require("os")
-const { statSync, readdirSync, mkdirSync, writeFileSync, readFileSync } = require("fs")
+const { existsSync, statSync, readdirSync, mkdirSync, writeFileSync, readFileSync } = require("fs")
 const { join } = require("path")
 
 const interactiveHelpObject = {
@@ -12,7 +12,7 @@ const interactiveHelpObject = {
 
 const scriptHelpObject = {
 	title: "Usage",
-	message: "node [command] # any of: help, system, user, directory, details {file}, exit"
+	message: "node [command] # any of: help, system, user, directory, details {file}, display {info letter}, exit"
 	  + "\n\n-i for interactive mode, will ignore the rest of them"
 	  + "\n\n-s as last param to save output to a file under the info directory"
 }
@@ -55,7 +55,13 @@ const getExistingInfo = (option) => {
 		case "s":
 			return getInfo(join(__dirname, "info/system.json"))
 		default:
-		  return { type: "WRONG_OPTION", hint: `unrecognized display option: ${option}` }
+			if (option) return { type: "WRONG_OPTION", hint: `unrecognized display option: ${option}` }
+			if (existsSync("./info")) {
+				const fileList = readdirSync("./info")
+				return fileList.length > 0 ?
+					fileList.reduce((acc, curr) => readFileSync(`./info/${curr}`) + acc, "") :
+					{ type: "EMPTY_INFO_DIR", hint: "generate some info, directory empty" }
+			}					
 	}
 }
 
