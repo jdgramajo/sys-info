@@ -43,8 +43,8 @@ const getFileStats = (name) => {
 	try {
 		const stats = statSync(name)
 		return stats
-	} catch(error) {
-		return { error, hint: "Something went wrong, double check with \"directory\"" }
+	} catch (error) {
+		return { type: "FILE_ERROR", hint: `${error.message}: check with "directory"` }
 	}
 }
 
@@ -61,7 +61,8 @@ const getExistingInfo = (option) => {
 				return fileList.length > 0 ?
 					fileList.reduce((acc, curr) => readFileSync(`./info/${curr}`) + acc, "") :
 					{ type: "EMPTY_INFO_DIR", hint: "generate some info, directory empty" }
-			}					
+			}
+			return { type: "INFO_DIR_NOT_FOUND", hint: "generate some info, directory does not exist" }
 	}
 }
 

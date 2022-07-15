@@ -2,14 +2,23 @@
 
 const { spawn } = require("child_process");
 const tap = require("tap")
-const { readdirSync, readFileSync, existsSync, renameSync, mkdirSync, writeFileSync, rmSync } = require('fs')
-const { join } = require("path")
+const { readdirSync, readFileSync, existsSync, renameSync, mkdirSync, writeFileSync, rmSync, rmdirSync } = require("fs")
+const { resolve } = require("path")
+
+tap.before(() => {
+	const infoDirExists = existsSync(resolve(__dirname, "..", "info"))
+	if (infoDirExists) renameSync(resolve(__dirname, "..", "info"), resolve(__dirname, "..", "test-backup"))
+	mkdirSync(resolve(__dirname, "..", "info")), { recursive: true }
+	for (let option of [ "system", "user", "directory" ]) {
+		writeFileSync(resolve(__dirname, "..", "info", `${option}.json`), option)
+	}
+})
 
 tap.test("script mode tests", t => {
 	t.test("given an empty command", t => {
 
 		let dataEventEmitted = false
-		const child = spawn("node", ["sys-info.js"], { cwd: join(__dirname, '..') })
+		const child = spawn("node", ["sys-info.js"], { cwd: resolve(__dirname, '..') })
 
 		child.stdout.on("data", data => {
 			dataEventEmitted = true
@@ -25,7 +34,7 @@ tap.test("script mode tests", t => {
 
 	t.test("given good command", t => {
 		let dataEventEmitted = false
-		const child = spawn("node", ["sys-info.js", "directory"], { cwd: join(__dirname, '..') })
+		const child = spawn("node", ["sys-info.js", "directory"], { cwd: resolve(__dirname, '..') })
 
 		child.stdout.on("data", data => {
 			dataEventEmitted = true
@@ -43,7 +52,7 @@ tap.test("script mode tests", t => {
 	t.test("given a bad command", t => {
 
 		let dataEventEmitted = false
-		const child = spawn("node", ["sys-info.js", "bla"], { cwd: join(__dirname, "..") })
+		const child = spawn("node", ["sys-info.js", "bla"], { cwd: resolve(__dirname, '..') })
 
 		child.stdout.on("data", data => {
 			dataEventEmitted = true
@@ -58,7 +67,7 @@ tap.test("script mode tests", t => {
 
 	t.test("when outputing commands end with the \"-s\" flag", t => {
 		let dataEventEmitted = false
-		const child = spawn("node", ["sys-info.js", "system", "-s"], { cwd: join(__dirname, "..") })
+		const child = spawn("node", ["sys-info.js", "system", "-s"], { cwd: resolve(__dirname, '..') })
 
 		child.stdout.on("data", data => {
 			dataEventEmitted = true
@@ -73,12 +82,10 @@ tap.test("script mode tests", t => {
 		})
 	})
 
-	// TODO: This test is coupled to file creation above -> FIX!
-	t.test("\"display\" command tests", t => {
-		
+	t.test("\"display\" command tests", async t => {
 		t.test("with a valid option specified", t => {
 			let dataEventEmitted = false
-			const child = spawn("node", ["sys-info.js", "display", "s"], { cwd: join(__dirname, "..") })
+			const child = spawn("node", ["sys-info.js", "display", "s"], { cwd: resolve(__dirname, '..') })
 
 			child.stdout.on("data", data => {
 				dataEventEmitted = true
@@ -93,7 +100,7 @@ tap.test("script mode tests", t => {
 
 		t.test("with a invalid option specified, it outputs an error message", t => {
 			let dataEventEmitted = false
-			const child = spawn("node", ["sys-info.js", "display", "x"], { cwd: join(__dirname, "..") })
+			const child = spawn("node", ["sys-info.js", "display", "x"], { cwd: resolve(__dirname, '..') })
 
 			child.stdout.on("data", data => {
 				dataEventEmitted = true
@@ -106,44 +113,8 @@ tap.test("script mode tests", t => {
 			})
 		})
 
-		t.test("with no additional params, it displays all existing info", t => {
-			
-			const testTime = new Date().getTime()
-			const restoreDir = existsSync("../info")
-			const options = ["system", "user", "directory", "details", "display"]
-	
-			let dataEventEmitted = false
-
-			t.before(() => {
-				if (restoreDir) renameSync("../info", `../${testTime}-info`)
-				mkdirSync("../info")
-				for(let option of options) { writeFileSync(`../info/${option}-test-file.txt`, option) }
-				for (let file of readdirSync("../info")) console.log(readFileSync(`../info/${file}`).toString())
-				console.log(readdirSync("../info"))
-			})
-
-			t.teardown(() => {
-				console.log(readdirSync("../info"))
-				for (let file of readdirSync("../info")) { console.log(readFileSync(`../info/${file}`).toString()) }
-				rmSync("../info", { recursive: true, force: true })
-				if (restoreDir) renameSync(`../${testTime}-info`, "../info")
-			})
-
-			const child = spawn("node", ["sys-info.js", "display"], { cwd: join(__dirname, "..") })
-
-			child.stdout.on("data", data => {
-			  dataEventEmitted = true
-			  t.same(data.toString(), options.join(), "display must join available files and combine contents")
-			})
-
-			child.on("close", () => {
-			  t.ok(dataEventEmitted, "stdout should emit data")
-			  t.end()
-			})
-
-		})
-
 		t.end()
+
 	})
 
 	t.end()
@@ -154,9 +125,12 @@ tap.test("interactive mode tests", t => {
 
 	t.test("given \"-i\" flag, interactive mode is launched, within it:", t => {
 
-		const child = spawn("node", ["sys-info.js", "-i"], { cwd: join(__dirname, "..") })
+		const child = spawn("node", ["sys-info.js", "-i"], { cwd: resolve(__dirname, '..') })
 		const commandTests = [
-			{ genExp: /(atime|mtime|ctime|birthtime)/, message: "must output file stats", nextCommand: "exit\n" },
+			{ genExp: /.*/, message: "must output info", nextCommand: "exit\n" },
+			{ genExp: /.*/, message: "must output info", nextCommand: "display\n" }, // after re creating empty dir
+			{ genExp: /.*/, message: "must output info", nextCommand: "display\n" }, // after deleting info dir
+			{ genExp: /(atime|mtime|ctime|birthtime)/, message: "must output file stats", nextCommand: "display\n" },
 			{ genExp: /(error|hint)/, message: "must output error message & hint", nextCommand: `details ${__filename}\n` },
 			{ genExp: /\[/, message: "must output a dir member array", nextCommand: "details badname\n" },
 			{ genExp: /(uid|gid|username|homedir|shell)/, message: "must get user info", nextCommand: "directory\n" },
@@ -174,6 +148,14 @@ tap.test("interactive mode tests", t => {
 			const { genExp, message, nextCommand } = commandTests.pop()
 			t.match(data.toString(), genExp, message)
 			child.stdin.write(nextCommand)
+			if (nextCommand === "display\n") {
+				// deletes the directory after first display call
+				if (existsSync(resolve(__dirname, "..", "info"))) {
+					rmdirSync(resolve(__dirname, "..", "info"), { recursive: true, force: true })
+				} else {
+					mkdirSync(resolve(__dirname, "..", "info"))
+				}
+			}
 		})
 
 		child.on("close", () => {
@@ -185,4 +167,10 @@ tap.test("interactive mode tests", t => {
 
 	t.end()
 
+})
+
+tap.teardown(() => {
+	if (existsSync(resolve(__dirname, "..", "info"))) rmdirSync(resolve(__dirname, "..", "info"), 
+		{ recursive: true, force: true })
+	renameSync(resolve(__dirname, "..", "test-backup"), resolve(__dirname, "..", "info"))
 })
