@@ -2,7 +2,7 @@
 
 const os = require("os")
 const { existsSync, statSync, readdirSync, mkdirSync, writeFileSync, readFileSync } = require("fs")
-const { join } = require("path")
+const { resolve } = require("path")
 
 const interactiveHelpObject = {
 	title: "Help",
@@ -49,11 +49,21 @@ const getFileStats = (name) => {
 }
 
 const getExistingInfo = (option) => {
-	const getInfo = filename => JSON.parse(readFileSync(filename).toString())
-
+	const getInfo = filename => {
+		try {
+			const jsonObj = JSON.parse(readFileSync(filename).toString())
+			return jsonObj
+		} catch (error) {
+			return { type: "JSON_PARSING_ERROR", hint: error.message }
+		}
+	}
 	switch (option) {
 		case "s":
-			return getInfo(join(__dirname, "info/system.json"))
+			return getInfo(resolve(__dirname, "info/system.json"))
+		case "u":
+			return getInfo(resolve(__dirname, "info/user.json"))
+		case "d":
+			return getInfo(resolve(__dirname, "info/directory.json"))
 		default:
 			if (option) return { type: "WRONG_OPTION", hint: `unrecognized display option: ${option}` }
 			if (existsSync("./info")) {

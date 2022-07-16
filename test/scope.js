@@ -1,17 +1,14 @@
 "use strict"
 
-const { spawn } = require("child_process");
+const { spawn } = require("child_process")
 const tap = require("tap")
-const { readdirSync, readFileSync, existsSync, renameSync, mkdirSync, writeFileSync, rmSync, rmdirSync } = require("fs")
+const { readdirSync, readFileSync, existsSync, renameSync, mkdirSync, writeFileSync, rmSync } = require("fs")
 const { resolve } = require("path")
 
 tap.before(() => {
 	const infoDirExists = existsSync(resolve(__dirname, "..", "info"))
 	if (infoDirExists) renameSync(resolve(__dirname, "..", "info"), resolve(__dirname, "..", "test-backup"))
 	mkdirSync(resolve(__dirname, "..", "info")), { recursive: true }
-	for (let option of [ "system", "user", "directory" ]) {
-		writeFileSync(resolve(__dirname, "..", "info", `${option}.json`), option)
-	}
 })
 
 tap.test("script mode tests", t => {
@@ -89,7 +86,8 @@ tap.test("script mode tests", t => {
 
 			child.stdout.on("data", data => {
 				dataEventEmitted = true
-				t.match(data.toString(), /(type|architecture|hostname|platform|cpus)/, "must output that file named as the command was created")
+				t.match(data.toString(), /(type|architecture|hostname|platform|cpus)/,
+					"must output that file named as the command was created")
 			})
 
 			child.on("close", () => {
@@ -104,7 +102,8 @@ tap.test("script mode tests", t => {
 
 			child.stdout.on("data", data => {
 				dataEventEmitted = true
-				t.match(data.toString(), /(WRONG_OPTION|unrecognized display option: h)/, "must output that file named as the command was created")
+				t.match(data.toString(), /(WRONG_OPTION|unrecognized display option: h)/,
+					"must output that file named as the command was created")
 			})
 
 			child.on("close", () => {
@@ -127,16 +126,23 @@ tap.test("interactive mode tests", t => {
 
 		const child = spawn("node", ["sys-info.js", "-i"], { cwd: resolve(__dirname, '..') })
 		const commandTests = [
-			{ genExp: /.*/, message: "must output info", nextCommand: "exit\n" },
-			{ genExp: /.*/, message: "must output info", nextCommand: "display\n" }, // after re creating empty dir
-			{ genExp: /.*/, message: "must output info", nextCommand: "display\n" }, // after deleting info dir
-			{ genExp: /(atime|mtime|ctime|birthtime)/, message: "must output file stats", nextCommand: "display\n" },
-			{ genExp: /(error|hint)/, message: "must output error message & hint", nextCommand: `details ${__filename}\n` },
-			{ genExp: /\[/, message: "must output a dir member array", nextCommand: "details badname\n" },
-			{ genExp: /(uid|gid|username|homedir|shell)/, message: "must get user info", nextCommand: "directory\n" },
-			{ genExp: /(type|cpu|hostname|platform)/, message: "must get system info", nextCommand: "user\n" },
+			{ genExp: /interactive mode/, message: "must enter interactive mode", nextCommand: "help\n" },
 			{ genExp: /(title|message)/, message: "must dispay help", nextCommand: "system\n" },
-			{ genExp: /interactive mode/, message: "must enter interactive mode", nextCommand: "help\n" }
+			{ genExp: /(type|cpu|hostname|platform)/, message: "must get system info", nextCommand: "user\n" },
+			{ genExp: /(uid|gid|username|homedir|shell)/, message: "must get user info", nextCommand: "directory\n" },
+			{ genExp: /\[/, message: "must output a dir member array", nextCommand: "system -s\n" },
+			{ genExp: /(file created)/, message: "should create/update a file", nextCommand: "user -s\n" },
+			{ genExp: /(file created)/, message: "should create/update a file", nextCommand: "directory -s\n" },
+			{ genExp: /(file created)/, message: "should create/update a file", nextCommand: "details badname\n" },
+			{ genExp: /(type|hint)/, message: "must output error message & hint", nextCommand: `details ${__filename}\n` },
+			{ genExp: /(atime|mtime|ctime|birthtime)/, message: "must output file stats", nextCommand: "display s\n" },
+			{ genExp: /(type|cpu|hostname|platform)/, message: "must output user info", nextCommand: "display u\n" },
+			{ genExp: /(uid|gid|username|homedir|shell)/, message: "must output system info", nextCommand: "display d\n" },
+			{ genExp: /\[/, message: "must output directory info", nextCommand: "display\n" }, // info dir deleted after
+			{ genExp: /(type|cpu|username|shell|\[)/, message: "must output all info files", nextCommand: "display\n" },
+			{ genExp: /(type|hint|EMPTY_INFO_DIR)/, message: "must output all info files", nextCommand: "display\n" },
+			{ genExp: /(type|hint|JSON_PARSE_ERROR)/, message: "must output JSON_PARSE_ERROR", nextCommand: "display s\n" },
+			{ genExp: /(type|hint)/, message: "must output error message & hint", nextCommand: "exit\n" },
 		]
 
 		// First output does not count, but last call should. Balanced, as everything should be.
@@ -144,15 +150,15 @@ tap.test("interactive mode tests", t => {
 		let childDataEventCount = 0
 
 		child.stdout.on("data", data => {
-			childDataEventCount++
-			const { genExp, message, nextCommand } = commandTests.pop()
+			const { genExp, message, nextCommand } = commandTests[childDataEventCount++]
 			t.match(data.toString(), genExp, message)
 			child.stdin.write(nextCommand)
 			if (nextCommand === "display\n") {
 				// deletes the directory after first display call
 				if (existsSync(resolve(__dirname, "..", "info"))) {
-					rmdirSync(resolve(__dirname, "..", "info"), { recursive: true, force: true })
+					rmSync(resolve(__dirname, "..", "info"), { recursive: true, force: true })
 				} else {
+					// creates an empty directory for test coverage, after 2nd call
 					mkdirSync(resolve(__dirname, "..", "info"))
 				}
 			}
@@ -160,7 +166,7 @@ tap.test("interactive mode tests", t => {
 
 		child.on("close", () => {
 			t.ok(childDataEventCount === commandTestCount,
-				`child process should output ${commandTests.length} times, did ${childDataEventCount}`)
+				`child process should output ${commandTestCount} times, did ${childDataEventCount}`)
 			t.end()
 		})
 	})
@@ -170,7 +176,9 @@ tap.test("interactive mode tests", t => {
 })
 
 tap.teardown(() => {
-	if (existsSync(resolve(__dirname, "..", "info"))) rmdirSync(resolve(__dirname, "..", "info"), 
+	if (existsSync(resolve(__dirname, "..", "info"))) rmSync(resolve(__dirname, "..", "info"), 
 		{ recursive: true, force: true })
-	renameSync(resolve(__dirname, "..", "test-backup"), resolve(__dirname, "..", "info"))
+	if (existsSync(resolve(__dirname, "..", "test-backup"))) renameSync(resolve(__dirname, "..", "test-backup"),
+		resolve(__dirname, "..", "info"))
 })
+
